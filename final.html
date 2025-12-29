@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Powered Stock Bot Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+/* =============================
+   AI BACKGROUND
+   ============================= */
+body {
+    background: radial-gradient(circle at top, #141e30, #0f0f1a 70%);
+    color: #e0e0e0;
+    font-family: 'Segoe UI', 'Orbitron', sans-serif;
+    overflow-x: hidden;
+}
+
+/* Animated particles */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-radial-gradient(circle at 50% 50%, rgba(0, 238, 255, 0.05), transparent 100px);
+    animation: moveParticles 30s linear infinite;
+    z-index: -1;
+}
+@keyframes moveParticles {
+    from { background-position: 0 0; }
+    to { background-position: 1000px 1000px; }
+}
+
+/* =============================
+   CARD DESIGN (Glass Effect)
+   ============================= */
+.card {
+    background: rgba(20, 20, 40, 0.6);
+    border: 1px solid rgba(0, 238, 255, 0.3);
+    border-radius: 18px;
+    box-shadow: 0 0 40px rgba(0,255,255,0.1);
+    backdrop-filter: blur(10px);
+}
+
+/* =============================
+   KPI CARDS
+   ============================= */
+.kpi-card {
+    border-radius: 18px;
+    padding: 20px;
+    text-align: center;
+    background: rgba(15, 25, 40, 0.8);
+    border: 1px solid rgba(0,255,255,0.25);
+    box-shadow: 0 0 20px rgba(0,255,255,0.1);
+    transition: all 0.3s ease;
+    position: relative;
+}
+.kpi-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 30px rgba(0,255,255,0.4);
+}
+.kpi-title {
+    font-size: 0.9rem;
+    color: #c6f7ff;
+    text-transform: uppercase;
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 0 10px rgba(0,255,255,0.6);
+}
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-top: 8px;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 0 15px rgba(0,255,255,0.9), 0 0 30px rgba(0,150,255,0.6);
+}
+
+/* =============================
+   ROBOT AREA
+   ============================= */
+#warehouse {
+    position: relative;
+    height: 150px;
+    background: radial-gradient(circle at center, #101025, #070714);
+    border-radius: 14px;
+    box-shadow: inset 0 0 40px rgba(0,255,255,0.1);
+}
+.box {
+    width: 80px;
+    height: 80px;
+    background: rgba(15, 15, 40, 0.8);
+    border: 2px solid #00e5ff;
+    border-radius: 12px;
+    position: absolute;
+    top: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #00e5ff;
+    font-weight: bold;
+    text-shadow: 0 0 6px #00e5ff;
+    box-shadow: 0 0 15px rgba(0,255,255,0.2);
+}
+#box1 { left: 20px; }
+#box2 { left: 150px; }
+#box3 { left: 280px; }
+
+/* ROBOT GLOW + FLOAT */
+#robot {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(145deg, #00475a, #00304a);
+    border-radius: 50%;
+    position: absolute;
+    top: 58px;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #0f0f1a;
+    font-weight: bold;
+    box-shadow: 0 0 15px rgba(0,229,255,0.1);
+    transition: left 1s ease, box-shadow 0.5s, background 0.5s;
+    animation: floatBot 3s ease-in-out infinite;
+}
+@keyframes floatBot {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+.robot-active {
+    background: linear-gradient(145deg, #00e5ff, #0078ff) !important;
+    box-shadow: 0 0 25px rgba(0,229,255,0.8) !important;
+}
+
+/* =============================
+   TASK LOG
+   ============================= */
+#taskLog {
+    max-height: 220px;
+    overflow-y: auto;
+    margin-top: 10px;
+    background: rgba(15, 15, 30, 0.8);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 0.9rem;
+    box-shadow: inset 0 0 10px rgba(0,255,255,0.1);
+}
+#taskLog p {
+    margin: 0;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(0,255,255,0.2);
+    color: #00e5ff;
+}
+
+/* =============================
+   BUTTON DESIGN
+   ============================= */
+button.btn-gradient {
+    background: linear-gradient(90deg, #00e5ff, #0078ff);
+    color: #0f0f1a;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: 0.3s;
+}
+button.btn-gradient:hover {
+    box-shadow: 0 0 20px #00e5ff, 0 0 40px #0078ff;
+    transform: translateY(-2px);
+}
+
+/* =============================
+   CHART STYLING
+   ============================= */
+canvas {
+    max-height: 210px;
+}
+
+h2 {
+    color: #00e5ff;
+    text-shadow: 0 0 15px rgba(0,255,255,0.6);
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+</style>
+</head>
+<body>
+<div class="container my-5">
+<h2 class="mb-4 text-center">Stock Bot</h2>
+
+<!-- KPI Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-title">Battery Level</div>
+            <div class="kpi-value" id="batteryKPI">100%</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-title">Current Task</div>
+            <div class="kpi-value" id="taskKPI">Offline</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-title">Total Inventory</div>
+            <div class="kpi-value" id="inventoryKPI">0</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Controls + Task Log -->
+    <div class="col-lg-4">
+        <div class="card p-4">
+            <button class="btn btn-gradient w-100 mb-3" id="powerBtn" onclick="powerOnRobot()"> Power On Robot</button>
+
+            <p style="color:#00e5ff;font-weight:500;">Select Task:</p>
+            <select id="taskSelect" class="form-select mb-3" onchange="toggleBoxSelect()">
+                <option value="store">Store</option>
+                <option value="retrieve">Retrieve</option>
+            </select>
+
+            <div id="boxSelectContainer">
+                <p style="color:#00e5ff;font-weight:500;">Select Box:</p>
+                <select id="boxSelect" class="form-select mb-3">
+                    <option value="0">Box 1</option>
+                    <option value="1">Box 2</option>
+                    <option value="2">Box 3</option>
+                </select>
+            </div>
+
+            <button class="btn btn-gradient w-100 mb-3" id="startBtn" onclick="startRobotTask()" disabled>▶ Start Task</button>
+
+            <p class="mt-4 mb-1" style="color:#00e5ff;">Task Log:</p>
+            <div id="taskLog"></div>
+        </div>
+    </div>
+
+    <!-- Inventory Chart + Warehouse -->
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <h5 class="mt-4" style="color:#00e5ff;">Inventory Levels</h5>
+            <canvas id="inventoryChart"></canvas>
+            <h5 class="mt-4" style="color:#00e5ff;">Warehouse Layout</h5>
+            <div id="warehouse">
+                <div id="box1" class="box">Box 1</div>
+                <div id="box2" class="box">Box 2</div>
+                <div id="box3" class="box">Box 3</div>
+                <div id="robot">🤖</div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyBzFXC5uSvv2VNrgd4qRok9WlEUuA3fYFM",
+  authDomain: "warehouserobot-32e0e.firebaseapp.com",
+  projectId: "warehouserobot-32e0e",
+  storageBucket: "warehouserobot-32e0e.firebasestorage.app",
+  messagingSenderId: "255271271699",
+  appId: "1:255271271699:web:34568c5711e879a299eee6"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let inventory=[0,0,0];
+let battery=100;
+let robotEl=document.getElementById('robot');
+let taskLog=document.getElementById('taskLog');
+let batteryKPI=document.getElementById('batteryKPI');
+let taskKPI=document.getElementById('taskKPI');
+let inventoryKPI=document.getElementById('inventoryKPI');
+let isPoweredOn=false;
+
+// Chart
+const ctx=document.getElementById('inventoryChart').getContext('2d');
+const inventoryChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels:['Box 1','Box 2','Box 3'], datasets:[{label:'Packages', data:inventory, backgroundColor:['#00e5ff','#00aaff','#0078ff'], borderRadius:10}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{color:'#00e5ff'}}, x:{ticks:{color:'#00e5ff'}}}}
+});
+
+function logTask(msg){ let p=document.createElement('p'); p.innerText=msg; taskLog.prepend(p); }
+
+function toggleBoxSelect(){
+    const task=document.getElementById('taskSelect').value;
+    const boxContainer=document.getElementById('boxSelectContainer');
+    boxContainer.style.display = (task === "retrieve") ? "block" : "none";
+}
+
+// Power On Robot
+function powerOnRobot(){
+    if(isPoweredOn){ logTask("⚡ Robot already powered on!"); return; }
+    isPoweredOn=true;
+    robotEl.classList.add("robot-active");
+    document.getElementById('startBtn').disabled=false;
+    taskKPI.innerText="Idle";
+    logTask(" Robot powered on and ready.");
+}
+
+// Start Task
+function startRobotTask(){
+    if(!isPoweredOn){ logTask("❌ Please power on the robot first!"); return; }
+
+    const task=document.getElementById('taskSelect').value;
+    let box=parseInt(document.getElementById('boxSelect').value);
+
+    if(task === "store"){
+        db.ref('robotCommand').set({task:"store"});
+        logTask(" Started store task.");
+        taskKPI.innerText="Storing new package";
+    } else {
+        moveRobot(box);
+        db.ref('robotCommand').set({task:"retrieve", box:box});
+        logTask(` Started retrieve task for Box ${box+1}`);
+        taskKPI.innerText=`Retrieving Box ${box+1}`;
+    }
+}
+
+function moveRobot(box){ const positions=[20,150,280]; robotEl.style.left=positions[box]+'px'; }
+function updateInventoryChart(){ inventoryChart.data.datasets[0].data=inventory; inventoryChart.update(); inventoryKPI.innerText=inventory.reduce((a,b)=>a+b,0); }
+function updateBattery(){ batteryKPI.innerText=battery+'%'; }
+
+db.ref('inventory').on('value',(snapshot)=>{ const data=snapshot.val(); if(data){ inventory=data; updateInventoryChart(); } });
+db.ref('battery').on('value',(snapshot)=>{ const b=snapshot.val(); if(b!==null){ battery=b; updateBattery(); } });
+
+// Hide box select initially for "Store"
+toggleBoxSelect();
+</script>
+</body>
+</html>
